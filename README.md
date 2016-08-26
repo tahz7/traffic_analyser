@@ -11,3 +11,7 @@ This script has been tested to run on the following;
 1. Apache and Nginx
 
 ### features:
+
+### usage:
+
+Please check the wiki section here.
