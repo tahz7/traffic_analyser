@@ -1,5 +1,7 @@
 # traffic analyser
 
+**Note: This script is still in beta and going through testing.**
+
 ### description:
 
 The script tries to provide you with useful information to help troubleshoot traffic related issues such as DDOS attacks, traffic spikes, brute forces, xmlrpc attacks, fake spider/bot attacks etc.
