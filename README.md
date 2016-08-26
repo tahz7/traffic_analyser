@@ -4,7 +4,7 @@
 
 ### requirements:
 
-This script has been tested to run on the following;
+This script has been tested to run with the following;
 
 1. Python 2.6/2.7
 1. Ubuntu, Centos/Red Hat.
