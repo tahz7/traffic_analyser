@@ -4,7 +4,7 @@
 
 The script tries to provide you with useful information to help troubleshoot traffic related issues such as DDOS attacks, traffic spikes, brute forces, xmlrpc attacks, fake spider/bot attacks etc.
 
-In light of scenarios where there could be large log files and resource usage limits, the script is designed to try and retrieve information as timely as possible
+In light of scenarios where there could be large log files and resource usage limits (server under heavy load), the script is designed to try and retrieve information as timely as possible
 
 ### requirements:
 
