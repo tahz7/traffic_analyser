@@ -50,7 +50,7 @@ The script will also tell you how many unique requests/ip hits an IP or a reques
  
 **Search Method**
  
-It's important to be able to retrieve the data as quickly as possible, particularly in scenarios where log files are large and the servers under heavy load.
+It's important to be able to retrieve the data as quickly as possible, particularly in scenarios where log files are large and the server's under heavy load.
 
 One of the key features of the script is that it has the ability to read a log file from the bottom up. This is particularly useful since in most use cases you want recent data which happens to be at the bottom half of the log file. This means regardless of how big the log file is, if you only want data from the past 30 minutes or the past day then you should get quick results rather than having to go through the whole log file from top to bottom to find the relevant data. As soon as the script detects the ‘end date range’ it closes the log file without reading the rest of the lines since it doesn’t need to. However, there are exceptions to this such as instances where the data you want is closer to the top half of the log file (potentially such as data from a week ago in a very large log file) in which case you have the following options;
  
