@@ -21,7 +21,7 @@ Please check the [wiki section here](https://github.com/tahz7/traffic_analyser/w
 ### features:
 
 The script detects if you're using apache or nginx and also automatically finds the access logs opened by them. 
-Below are other features separated into four groups which you can run in conjunction with each other;
+Below are other features separated into five option groups which you can run in conjunction with each other;
  
 **Time Range**
  
@@ -55,3 +55,6 @@ One of the key features of the script is that it has the ability to read a log f
 * Check a log file from the top going down (once it hits the ‘end date range’ then it will close the log file).
 * There are extremely rare instances in which apache/nginx writes lines that are not in dated chronological order. This is usually minimal data but if you suspect this and the missing data discrepancy is important to your use case, then you also have the option to tell the script to read the whole log file, top to bottom without breaking off.
 
+**Miscellaneous**
+
+* There may be cases where you don't necassarily need the geo information per ip in which case you can disable this information for faster results. 
