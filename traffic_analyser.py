@@ -256,6 +256,11 @@ def args_validation(options, args, parser):
         if len(args) < 1:
             parser.error(
                 'The second argument (and so forth) for option --rmatch needs to be a request string')
+    if options.filter:
+        options.filter = options.filter.upper()
+        if options.filter not in ['POST', 'GET']:
+            parser.error(
+                'The --filter option takes only one of these two arguments; POST or GET')
 
     # Ensure only one option per option group is selected
     time_list = []
@@ -358,6 +363,8 @@ def optionparse_args():
     # miscellaneous options group
     parser.add_option(
         '-g', '--nogeo', help='Disable geo information per ip', action='store_true')
+    parser.add_option(
+        '-f', '--filter', help='filter requests by POST or GET', type='str', nargs=1)
 
     # args is used for variable user inputs for rmatch and ipmatch only.
     # Options for other user input
@@ -623,8 +630,9 @@ def reverse_readline(filename, buf_size=8192):
 
 
 # This func adds ip/requests/time data to count dictionaries
-def dict_add(ip_req_count, date_count, regex_req_ip, found_time):
-    found_time_hour = found_time.strftime('%H')
+def dict_add(ip_req_count, date_count, regex_req_ip, found_time, hour, minute):
+    found_time_hour = str(hour)
+    found_time_minute = str(minute)
     found_time_date = found_time.date()
     # add data to ip or request dictionary
     # regex_req_ip can be ip or request
@@ -633,22 +641,32 @@ def dict_add(ip_req_count, date_count, regex_req_ip, found_time):
     ip_req_count[regex_req_ip]['date'][found_time_date][
         'hour'][found_time_hour]['count'] += 1
     ip_req_count[regex_req_ip]['date'][found_time_date]['hour'][found_time_hour]['ten_min'][
-        found_time.strftime('%M')[0]] += 1
+        found_time_minute[0]] += 1
     # add data to overall date dictionary
     date_count[found_time_date]['count'] += 1
     date_count[found_time_date]['hour'][found_time_hour]['count'] += 1
     date_count[found_time_date]['hour'][found_time_hour][
-        'ten_min'][found_time.strftime('%M')[0]] += 1
+        'ten_min'][found_time_minute[0]] += 1
 
     return ip_req_count, date_count
 
 
 # This functions takes a line of a log file and retrieves only the
 # information required
-def evaluate_line(line, ip_req_count, date_count, start_time, end_time, options, args):
-    regex_date = re.search(
-        r"(\d{2}/\w+/\d{4}:\d{2}:\d{2}:\d{2})", line).group()
-    regex_requests = re.search(r'"[^"]*" \d{3}', line).group()
+def evaluate_line(line, ip_req_count, date_count, start_time, end_time, regex_date, regex_requests, datetime_func, month_dict, options, args):
+    regex_date = regex_date(line).group()
+
+    # check if get or post filter in requests
+    if options.filter:
+        regex_requests = regex_requests(line)
+        if regex_requests:
+            regex_requests = regex_requests.group()
+        else:
+            found_time = None
+            return found_time, ip_req_count, date_count
+    else:
+        regex_requests = regex_requests(line).group()
+
     ip = line.replace(',', '').split()[0]  # for cloudflare logging format.
 
     if options.request or options.rmatch:
@@ -656,7 +674,14 @@ def evaluate_line(line, ip_req_count, date_count, start_time, end_time, options,
     else:
         regex_req_ip = ip
 
-    found_time = datetime.datetime.strptime(regex_date, "%d/%b/%Y:%H:%M:%S")
+    # convert line time into datetime object
+    yr = int(regex_date[7:11])
+    mon = month_dict[(regex_date[3:6])]
+    day = int(regex_date[0:2])
+    hr = int(regex_date[12:14])
+    mins = int(regex_date[15:17])
+    sec = int(regex_date[18:20])
+    found_time = datetime_func(yr, mon, day, hr, mins, sec)
 
     # compare time from log line to user input time range and retrieve data in
     # between
@@ -666,19 +691,19 @@ def evaluate_line(line, ip_req_count, date_count, start_time, end_time, options,
             ipmatch = args
             if regex_req_ip in ipmatch:
                 ip_req_count, date_count = dict_add(
-                    ip_req_count, date_count, regex_req_ip, found_time)
+                    ip_req_count, date_count, regex_req_ip, found_time, hr, mins)
                 ip_req_count[regex_req_ip]['get_post'][regex_requests] += 1
         # list of requests to check
         elif options.rmatch:
             rmatch = args
             if any(string in regex_requests for string in rmatch):
                 ip_req_count, date_count = dict_add(
-                    ip_req_count, date_count, regex_req_ip, found_time)
+                    ip_req_count, date_count, regex_req_ip, found_time, hr, mins)
                 ip_req_count[regex_req_ip]['ip'][ip] += 1
         # top ip's or top requests to check
         else:
             ip_req_count, date_count = dict_add(
-                ip_req_count, date_count, regex_req_ip, found_time)
+                ip_req_count, date_count, regex_req_ip, found_time, hr, mins)
             if options.request:
                 # Add ip data from line to dict
                 ip_req_count[regex_req_ip]['ip'][ip] += 1
@@ -702,6 +727,21 @@ def get_data_from_logs(options, args):
     date_count = defaultdict(overall_date_count)
     logs = get_log_files(options)
 
+    # compile regex for speed
+    regex_date_compile = r"(\d{2}/\w+/\d{4}:\d{2}:\d{2}:\d{2})"
+    regex_date = re.compile(regex_date_compile).search
+
+    if options.filter:
+        regex_requests_compile = r'"%s[^"]*" \d{3}' % options.filter
+    else:
+        regex_requests_compile = r'"[^"]*" \d{3}'
+
+    regex_requests = re.compile(regex_requests_compile).search
+    datetime_func = datetime.datetime
+    # month dict for converting time into datetime object
+    month_dict = {'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+                  'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12}
+
     while True:
         print 'Total Log File(s) to Check:', txt_colors.GREEN + str(len(logs)) + txt_colors.ENDC
         print 'Report Time Range: {0} - {1}'.format(txt_colors.LIGHTRED + str(start_time.strftime('%d/%b/%Y %H:%M:%S')),
@@ -716,24 +756,26 @@ def get_data_from_logs(options, args):
                 with open(logfile) as infile:
                     for line in infile:
                         found_time, ip_req_count, date_count = evaluate_line(line, ip_req_count, date_count, start_time,
-                                                                             end_time, options, args)
+                                                                             end_time, regex_date, regex_requests, datetime_func, month_dict, options, args)
                         # Once we find the end date time we no longer need to
                         # carry on checking lines.
-                        if found_time >= end_time:
-                            break
+                        if found_time:
+                            if found_time >= end_time:
+                                break
             # read log file from top line to the bottom line with no cut off
             elif options.complete:
                 with open(logfile) as infile:
                     for line in infile:
                         found_time, ip_req_count, date_count = evaluate_line(line, ip_req_count, date_count, start_time,
-                                                                             end_time, options, args)
+                                                                             end_time, regex_date, regex_requests, datetime_func, month_dict, options, args)
             # read the log file from bottom up
             else:
                 for line in reverse_readline(logfile):
                     found_time, ip_req_count, date_count = evaluate_line(line, ip_req_count, date_count, start_time,
-                                                                         end_time, options, args)
-                    if found_time <= start_time:
-                        break
+                                                                         end_time, regex_date, regex_requests, datetime_func, month_dict, options, args)
+                    if found_time:
+                        if found_time <= start_time:
+                            break
             # Iterate through the log file(s) selected by user and print data
             # for each
             if options.select:
