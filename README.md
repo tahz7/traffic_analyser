@@ -39,7 +39,7 @@ All IP’s that are listed show their Country, city, ISP and their hostname. The
 * Specify X number of IP’s in command line and get their top X requests
 * Specify X number of requests in command line and get their top X ip’s making requests.  (for example you can check ip’s that are hitting the request string ‘xmlrpc.php’ to see if there's an attack).
 
-The script will also tell you how many unique requests/ip hits an IP or a request is making
+For any of the options above you can filter by 'POST' or 'GET' requests. The script will also tell you how many unique requests/ip hits an IP or a request is making.
  
 **Logs**
  
