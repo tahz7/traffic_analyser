@@ -1092,7 +1092,16 @@ def print_data(*arguments):
     ip_req_logs, overall_date_logs, start_time, end_time, options = arguments
     ip_no, request_no = ip_req_number_args(options)
     # print total count for date and per hourly basis
-    print '\n\n==== OVERALL HITS PER DAY/HOUR ===='
+    if options.filter:
+	data = 'for {0}'.format(options.filter)
+    elif options.ipmatch:
+	data = 'for listed IP\'s'
+    elif options.rmatch:
+	data = 'for listed requests'
+    else:
+	data = ''
+
+    print '\n\n==== OVERALL HITS PER DAY/HOUR {0} ===='.format(data)
     # print overall date hits for all ip's or requests
     print_date(overall_date_logs, start_time, end_time)
     print '\n'
