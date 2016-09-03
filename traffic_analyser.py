@@ -833,6 +833,7 @@ def ip_api(ip):
     return ip_country.encode('utf-8'), ip_city.encode('utf-8'), ip_isp.encode('utf-8'), hostname
 
 
+# called in print_data func. print 10 min intervals count
 def print_10min(logs):
     for ten_min_key, ten_min_count_value in logs.most_common():
         print '{0} [{1}] |'.format(txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC,
