@@ -833,6 +833,12 @@ def ip_api(ip):
     return ip_country.encode('utf-8'), ip_city.encode('utf-8'), ip_isp.encode('utf-8'), hostname
 
 
+def print_10min(logs):
+    for ten_min_key, ten_min_count_value in logs.most_common():
+        print '{0} [{1}] |'.format(txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC,
+                                   ten_min_count_value),
+
+
 # this func prints all data related to date/time.
 def print_date(date_logs, start_time, end_time):
     # sorts dates by total count, highest to lowest
@@ -869,25 +875,13 @@ def print_date(date_logs, start_time, end_time):
                                                           hour_count_value['count']),
                         # print 10 min interval information per hour
                         print '{',
-                        for ten_min_key, ten_min_count_value in hour_count_value['ten_min'].most_common():
-                            # same case as the start time hour above
-                            # but for start time ten minute interval
-                            if ten_min_key == start_time_minute[0]:
-                                print '{0} ({1} - {2}9) [{3}] |'.format(
-                                    txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC, start_time_minute,
-                                    start_time_minute[0],
-                                    ten_min_count_value),
-                            else:
-                                print '{0} [{1}] |'.format(txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC,
-                                                           ten_min_count_value),
+                        print_10min(hour_count_value['ten_min']),
                         print '}\n',
                     else:
                         print '{0} [{1}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
                                                  hour_count_value['count']),
                         print '{',
-                        for ten_min_key, ten_min_count_value in hour_count_value['ten_min'].most_common():
-                            print '{0} [{1}] |'.format(txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC,
-                                                       ten_min_count_value),
+                        print_10min(hour_count_value['ten_min']),
                         print '}\n',
 
             # last date
@@ -905,28 +899,15 @@ def print_date(date_logs, start_time, end_time):
                                                           end_time_minute,
                                                           hour_count_value['count']),
                         print '{',
-                        for ten_min_key, ten_min_count_value in hour_count_value['ten_min'].most_common():
-                            # last 10 min of the last hour of the last date
-                            if ten_min_key == end_time_minute[0]:
-                                print '{0} ({1}0 - {2}) [{3}] |'.format(
-                                    txt_colors.CYAN + ten_min_key + '0' +
-                                    txt_colors.ENDC, end_time_minute[0],
-                                    end_time_minute,
-                                    ten_min_count_value),
-                            # any 10 min of the last hour of the last date
-                            else:
-                                print '{0} [{1}] |'.format(txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC,
-                                                           ten_min_count_value),
+                        # print 10 min interval hit count for the hour
+                        print_10min(hour_count_value['ten_min']),
                         print '}\n',
                     else:
                         # Any hour of the last date
                         print '{0} [{1}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
                                                  hour_count_value['count']),
                         print '{',
-                        # any 10 min of any hour of the last date
-                        for ten_min_key, ten_min_count_value in hour_count_value['ten_min'].most_common():
-                            print '{0} [{1}] |'.format(txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC,
-                                                       ten_min_count_value),
+                        print_10min(hour_count_value['ten_min']),
                         print '}\n',
             # Any date that is not the first or the last
             else:
@@ -939,10 +920,7 @@ def print_date(date_logs, start_time, end_time):
                 for hour_key, hour_count_value in hour_sort:
                     print '{0} [{1}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC, hour_count_value['count']),
                     print '{',
-                    # any 10 min of any hour of the last date
-                    for ten_min_key, ten_min_count_value in hour_count_value['ten_min'].most_common():
-                        print '{0} [{1}] |'.format(txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC,
-                                                   ten_min_count_value),
+                    print_10min(hour_count_value['ten_min']),
                     print '}\n',
         # If the start time date and the end time date are both the same day
         else:
@@ -960,15 +938,7 @@ def print_date(date_logs, start_time, end_time):
                                                           start_time_minute,
                                                           hour_count_value['count']),
                         print '{',
-                        for ten_min_key, ten_min_count_value in hour_count_value['ten_min'].most_common():
-                            if ten_min_key == start_time_minute[0]:
-                                print '{0} ({1} - {2}9) [{3}] |'.format(
-                                    txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC, start_time_minute,
-                                    start_time_minute[0],
-                                    ten_min_count_value),
-                            else:
-                                print '{0} [{1}] |'.format(txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC,
-                                                           ten_min_count_value),
+                        print_10min(hour_count_value['ten_min']),
                         print '}\n',
                     # Last hour of the last date
                     elif hour_key == end_time_hour:
@@ -976,28 +946,14 @@ def print_date(date_logs, start_time, end_time):
                                                           end_time_minute,
                                                           hour_count_value['count']),
                         print '{',
-                        for ten_min_key, ten_min_count_value in hour_count_value['ten_min'].most_common():
-                            # last 10 min of the last hour of the last date
-                            if ten_min_key == end_time_minute[0]:
-                                print '{0} ({1}0 - {2}) [{3}] |'.format(
-                                    txt_colors.CYAN + ten_min_key + '0' +
-                                    txt_colors.ENDC, end_time_minute[0],
-                                    end_time_minute,
-                                    ten_min_count_value),
-                            # any 10 min of the last hour of the last date
-                            else:
-                                print '{0} [{1}] |'.format(txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC,
-                                                           ten_min_count_value),
+                        print_10min(hour_count_value['ten_min']),
                         print '}\n',
                     # any hour of the day
                     else:
                         print '{0} [{1}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
                                                  hour_count_value['count']),
                         print '{',
-                        # any 10 min of any hour of the day
-                        for ten_min_key, ten_min_count_value in hour_count_value['ten_min'].most_common():
-                            print '{0} [{1}] |'.format(txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC,
-                                                       ten_min_count_value),
+                        print_10min(hour_count_value['ten_min']),
                         print '}\n',
                 # if it is within the same hour
                 else:
@@ -1005,24 +961,7 @@ def print_date(date_logs, start_time, end_time):
                                                        start_time_minute,
                                                        end_time_minute, hour_count_value['count']),
                     print '{',
-                    for ten_min_key, ten_min_count_value in hour_count_value['ten_min'].most_common():
-                        if ten_min_key == start_time_minute[0]:
-                            print '{0} ({1} - {2}9) [{3}] |'.format(txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC,
-                                                                    start_time_minute,
-                                                                    start_time_minute[
-                                                                        0],
-                                                                    ten_min_count_value),
-                        elif ten_min_key == end_time_minute[0]:
-                            print '{0} ({1}0 - {2}) [{3}] |'.format(txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC,
-                                                                    end_time_minute[
-                                                                        0],
-                                                                    end_time_minute,
-                                                                    ten_min_count_value),
-                        # print all the other 10 min values that aren't at the
-                        # start or end
-                        else:
-                            print '{0} [{1}] |'.format(txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC,
-                                                       ten_min_count_value),
+                    print_10min(hour_count_value['ten_min']),
                     print '}\n',
 
 
@@ -1093,19 +1032,24 @@ def print_data(*arguments):
     ip_no, request_no = ip_req_number_args(options)
     # print total count for date and per hourly basis
     if options.filter and options.ipmatch:
-	data = 'for {0} with listed IP\'s'.format(options.filter)
+        data = 'for {0} with listed IP\'s'.format(options.filter)
     elif options.filter and options.rmatch:
-	data = 'for {0} with listed requests'.format(options.filter)
+        data = 'for {0} with listed requests'.format(options.filter)
     elif options.filter:
-	data = 'for {0}'.format(options.filter)
+        data = 'for {0}'.format(options.filter)
     elif options.ipmatch:
-	data = 'for listed IP\'s'
+        data = 'for listed IP\'s'
     elif options.rmatch:
-	data = 'for listed requests'
+        data = 'for listed requests'
     else:
-	data = ''
+        data = ''
 
-    print '\n\n==== OVERALL HITS PER DAY/HOUR {0} ===='.format(data)
+    print '\n\n==== OVERALL HITS between {0} - {1} {2} ===='.format(txt_colors.LIGHTRED + str(start_time.strftime('%d/%b/%Y %H:%M:%S')),
+                                                                    str(end_time.strftime('%d/%b/%Y %H:%M:%S')) + txt_colors.ENDC, data)
+
+    print '\n\n{0}: {1} (*minutes) [count] ( {2} [count] | )'.format(txt_colors.YELLOW + 'Key' + txt_colors.ENDC,
+                                                                     txt_colors.GREEN + 'Hour' + txt_colors.ENDC,
+                                                                     txt_colors.CYAN + '10 min intervals' + txt_colors.ENDC),
     # print overall date hits for all ip's or requests
     print_date(overall_date_logs, start_time, end_time)
     print '\n'
