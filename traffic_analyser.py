@@ -473,10 +473,14 @@ def get_log_files(options):
             raise
 
         # fix the issue where a log file has been moved/archived/deleted
+        # remove any logs that are 0kb
         logs_copy = logs.copy()
 
         for log in logs:
             if '(deleted)' in log:
+                logs_copy.remove(log)
+            log_size = filesize(os.path.getsize(log))
+            if log_size == '0.00 B':
                 logs_copy.remove(log)
 
         logs = logs_copy
@@ -492,27 +496,35 @@ def get_log_files(options):
                 try:
                     sys.stdin = open('/dev/tty')
                     string_input = raw_input(
-                        'Which logs do you want to check? (eg. 1 3 4): ')
+                        'Which logs do you want to check? (eg. 1 3 4 or \'all\'): ')
                     print '\n',
                     input_list = string_input.split()
-                    input_list = [int(a) for a in input_list]
-                    # Check user input is correct
-                    if max(input_list) > len(logs) or min(input_list) < 1:
-                        print 'Error: The logs range from 1 to %d, so where did you get %d from...?' % (
-                            len(logs), max(input_list))
+                    if not input_list:
+                        print 'You need to make sure your input is either \'all\'(selects all logs) or are digits with spacing between them (ie. 4 3 2 1)'
                     else:
-                        break
+                        if all(x in ['ALL', 'all'] for x in input_list):
+                            break
+                        else:
+                            input_list = [int(a) for a in input_list]
+                            # Check user input is correct
+                            if max(input_list) > len(logs) or min(input_list) < 1:
+                                print 'Error: The logs range from 1 to {0}, so where did you get {1} from...?'.format(
+                                    len(logs), max(input_list))
+                            else:
+                                break
                 except ValueError:
-                    print 'You need to make sure your input are all digits with spacing between them (ie. 4 3 2 1)'
+                    print 'You need to make sure your input is either \'all\'(selects all logs) or are digits with spacing between them (ie. 4 3 2 1)'
 
-            selected_logs = []
+            if all(x in ['ALL', 'all'] for x in input_list):
+                return logs
+            else:
+                selected_logs = []
 
-            for n, log in enumerate(logs, 1):
-                if n in input_list:
-                    selected_logs.append(log)
+                for n, log in enumerate(logs, 1):
+                    if n in input_list:
+                        selected_logs.append(log)
 
-            return selected_logs
-
+                return selected_logs
     return logs
 
 
@@ -1049,8 +1061,8 @@ def print_data(*arguments):
                                                                     str(end_time.strftime('%d/%b/%Y %H:%M:%S')) + txt_colors.ENDC, data)
 
     print '\n\n{0}: {1} (*minutes) [count] ( {2} [count] | )'.format(txt_colors.YELLOW + 'Key' + txt_colors.ENDC,
-                                                                     txt_colors.GREEN + 'Hour' + txt_colors.ENDC,
-                                                                     txt_colors.CYAN + '10 min intervals' + txt_colors.ENDC),
+                                                                     txt_colors.GREEN + 'Hour Clock' + txt_colors.ENDC,
+                                                                     txt_colors.CYAN + '10 min intervals eg. 00 = 0-10 mins... 50 = 50-60 mins' + txt_colors.ENDC),
     # print overall date hits for all ip's or requests
     print_date(overall_date_logs, start_time, end_time)
     print '\n'
