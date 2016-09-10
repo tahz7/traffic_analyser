@@ -229,7 +229,8 @@ def args_validation(options, args, parser):
     if options.dir:
         if not os.path.exists(options.dir):
             parser.error(
-                'Could not file the directory; {0}. Make sure you\'ve got the correct directory name'.format(options.dir))
+                'Could not file the directory; {0}. Make sure you\'ve got the correct directory name'.format(
+                    options.dir))
     if options.date:
         try:
             datetime.datetime.strptime(options.date[0], "%d/%b/%Y:%H:%M:%S")
@@ -272,7 +273,7 @@ def args_validation(options, args, parser):
         if arg not in [None, False]:
             if option in ['day', 'hour', 'min', 'date']:
                 time_list.append(option)
-            if option in ['ip', 'request', 'ipmatch', 'rmatch']:
+            if option in ['ip', 'request', 'ipmatch', 'rmatch', 'compact']:
                 data_list.append(option)
             if option in ['select', 'log', 'dir']:
                 log_list.append(option)
@@ -281,13 +282,14 @@ def args_validation(options, args, parser):
     for item in [time_list, data_list, log_list, search_list]:
         if len(item) > 1:
             parser.error(
-                'You can only use one of the following options: ' + ' '.join(['--{0}'.format(option) for option in item]))
+                'You can only use one of the following options: ' + ' '.join(
+                    ['--{0}'.format(option) for option in item]))
     # Ensure both time and data options are input as a minimum for the script
     # to work.
     if not time_list or not data_list:
         parser.error(
             'You must choose at least one time group option (--min, --hour, --day, --date) '
-            'and one data group option (--ip, --request, --ipmatch, --rmatch)')
+            'and one data group option (--ip, --request, --ipmatch, --rmatch, --compact)')
 
     return options, args
 
@@ -325,6 +327,9 @@ def optionparse_args():
                            'Example; date/month/year:hour:minute:second | 10/Aug/2016:15:00:00',
                       metavar=('from_time', 'to_time'), nargs=2)
     # data options group
+    parser.add_option('-c', '--compact',
+                      help='Get a simple version of a list of the top X ip\'s and a list of the top X requests',
+                      metavar=('ip_number', 'request_number'), type='int', nargs=2)
     parser.add_option('-i', '--ip',
                       help='Get the top X ip\'s along with their top X requests',
                       metavar=('ip_number', 'request_number'), type='int', nargs=2)
@@ -347,7 +352,7 @@ def optionparse_args():
     parser.add_option("-l", "--log", help='Choose which log files to read from '
                                           '(you can input multiple log files). '
                                           'Example; --log google_access_log yahoo_access_log.1',
-                      metavar='log_file',  action="callback", callback=multi_args, dest="log")
+                      metavar='log_file', action="callback", callback=multi_args, dest="log")
     parser.add_option('-d', '--dir',
                       help='Check the logs that are in the current directory '
                            '(the directory must only have text based log files.',
@@ -385,15 +390,18 @@ def ip_req_number_args(options):
     elif options.rmatch:
         request_no = None
         ip_no = int(options.rmatch[0])
-    else:  # options.ipmatch:
+    elif options.ipmatch:
         ip_no = None
         request_no = options.ipmatch[0]
+    else:  # options.compact
+        ip_no = options.compact[0]
+        request_no = options.compact[1]
 
     # If requesting geo information, limit api to 30 ip's to avoid potential
     # abuse.
     if not options.nogeo:
         if ip_no > 30:
-            print txt_colors.LIGHTRED + ('\nWarning: You chose {0} ip\'s when the limit is 30 '
+            print txt_colors.LIGHTRED + ('\nNote: You chose {0} ip\'s when the limit is 30 '
                                          '(this has been adjusted automatically). '
                                          'If you want to display more than 30 ip\'s then use the -nogeo option.'.format(
                                              ip_no)) + txt_colors.ENDC
@@ -465,7 +473,7 @@ def get_log_files(options):
                 for filename in os.listdir('/proc/{0}/fd'.format(pid)):
                     filename = os.readlink(
                         "/proc/{0}/fd/{1}".format(pid, filename))
-                    if 'access_log' in filename or 'access.log' in filename:
+                    if 'access' in filename:
                         logs.add(filename)
         except:
             print ('ERROR: There was a problem finding the log files. Please email this error '
@@ -500,7 +508,8 @@ def get_log_files(options):
                     print '\n',
                     input_list = string_input.split()
                     if not input_list:
-                        print 'You need to make sure your input is either \'all\'(selects all logs) or are digits with spacing between them (ie. 4 3 2 1)'
+                        print ('You need to make sure your input is either \'all\'(selects all logs) '
+                               'or are digits with spacing between them (ie. 4 3 2 1)')
                     else:
                         if all(x in ['ALL', 'all'] for x in input_list):
                             break
@@ -513,11 +522,15 @@ def get_log_files(options):
                             else:
                                 break
                 except ValueError:
-                    print 'You need to make sure your input is either \'all\'(selects all logs) or are digits with spacing between them (ie. 4 3 2 1)'
+                    print ('You need to make sure your input is either \'all\'(selects all logs) '
+                           'or are digits with spacing between them (ie. 4 3 2 1)')
 
+            # if user chooses 'all' option then iterate through all open log
+            # files
             if all(x in ['ALL', 'all'] for x in input_list):
                 return logs
             else:
+                # else only grab logs the user wants
                 selected_logs = []
 
                 for n, log in enumerate(logs, 1):
@@ -642,10 +655,7 @@ def reverse_readline(filename, buf_size=8192):
 
 
 # This func adds ip/requests/time data to count dictionaries
-def dict_add(ip_req_count, date_count, regex_req_ip, found_time, hour, minute):
-    found_time_hour = str(hour)
-    found_time_minute = str(minute)
-    found_time_date = found_time.date()
+def dict_add(ip_req_count, regex_req_ip, found_time_date, found_time_hour, found_time_minute):
     # add data to ip or request dictionary
     # regex_req_ip can be ip or request
     ip_req_count[regex_req_ip]['count'] += 1
@@ -654,38 +664,26 @@ def dict_add(ip_req_count, date_count, regex_req_ip, found_time, hour, minute):
         'hour'][found_time_hour]['count'] += 1
     ip_req_count[regex_req_ip]['date'][found_time_date]['hour'][found_time_hour]['ten_min'][
         found_time_minute[0]] += 1
+
+    return ip_req_count
+
+
+# add to overall date dictionary
+def dict_date_add(date_count, found_time_date, found_time_hour, found_time_minute):
     # add data to overall date dictionary
     date_count[found_time_date]['count'] += 1
     date_count[found_time_date]['hour'][found_time_hour]['count'] += 1
     date_count[found_time_date]['hour'][found_time_hour][
         'ten_min'][found_time_minute[0]] += 1
 
-    return ip_req_count, date_count
+    return date_count
 
 
 # This functions takes a line of a log file and retrieves only the
 # information required
-def evaluate_line(line, ip_req_count, date_count, start_time, end_time, regex_date, regex_requests, datetime_func, month_dict, options, args):
+def evaluate_line(line, ip_req_count, date_count, start_time, end_time, regex_date, regex_requests, datetime_func,
+                  month_dict, options, args):
     regex_date = regex_date(line).group()
-
-    # check if get or post filter in requests
-    if options.filter:
-        regex_requests = regex_requests(line)
-        if regex_requests:
-            regex_requests = regex_requests.group()
-        else:
-            found_time = None
-            return found_time, ip_req_count, date_count
-    else:
-        regex_requests = regex_requests(line).group()
-
-    ip = line.replace(',', '').split()[0]  # for cloudflare logging format.
-
-    if options.request or options.rmatch:
-        regex_req_ip = regex_requests
-    else:
-        regex_req_ip = ip
-
     # convert line time into datetime object
     yr = int(regex_date[7:11])
     mon = month_dict[(regex_date[3:6])]
@@ -694,28 +692,59 @@ def evaluate_line(line, ip_req_count, date_count, start_time, end_time, regex_da
     mins = regex_date[15:17]
     sec = int(regex_date[18:20])
     found_time = datetime_func(yr, mon, day, int(hr), int(mins), sec)
+    found_time_date = found_time.date()
+    found_time_hour = str(hr)
+    found_time_minute = str(mins)
 
     # compare time from log line to user input time range and retrieve data in
     # between
     if start_time <= found_time <= end_time:
+        # check if get or post filter in requests
+        if options.filter:
+            regex_requests = regex_requests(line)
+            if regex_requests:
+                regex_requests = regex_requests.group()
+            else:
+                found_time = None
+                return found_time, ip_req_count, date_count
+        else:
+            regex_requests = regex_requests(line).group()
+
+        # get ip
+        ip = line.replace(',', '').split()[0]  # for cloudflare logging format.
+
+        if options.request or options.rmatch:
+            regex_req_ip = regex_requests
+        else:
+            regex_req_ip = ip
+
+        # add to overall dictionary count
+        if not options.rmatch or not options.ipmatch:
+            date_count = dict_date_add(
+                date_count, found_time_date, found_time_hour, found_time_minute)
         # list of ip's to check
         if options.ipmatch:
             ipmatch = args
             if regex_req_ip in ipmatch:
-                ip_req_count, date_count = dict_add(
-                    ip_req_count, date_count, regex_req_ip, found_time, hr, mins)
+                ip_req_count = dict_add(
+                    ip_req_count, regex_req_ip, found_time_date, found_time_hour, found_time_minute)
                 ip_req_count[regex_req_ip]['get_post'][regex_requests] += 1
         # list of requests to check
         elif options.rmatch:
             rmatch = args
             if any(string in regex_requests for string in rmatch):
-                ip_req_count, date_count = dict_add(
-                    ip_req_count, date_count, regex_req_ip, found_time, hr, mins)
+                ip_req_count = dict_add(
+                    ip_req_count, regex_req_ip, found_time_date, found_time_hour, found_time_minute)
                 ip_req_count[regex_req_ip]['ip'][ip] += 1
+        # compact option collects only ip's and requests without their time
+        # hitcount data
+        elif options.compact:
+            ip_req_count['ip'][ip] += 1
+            ip_req_count['request'][regex_requests] += 1
         # top ip's or top requests to check
         else:
-            ip_req_count, date_count = dict_add(
-                ip_req_count, date_count, regex_req_ip, found_time, hr, mins)
+            ip_req_count = dict_add(
+                ip_req_count, regex_req_ip, found_time_date, found_time_hour, found_time_minute)
             if options.request:
                 # Add ip data from line to dict
                 ip_req_count[regex_req_ip]['ip'][ip] += 1
@@ -733,17 +762,21 @@ def get_data_from_logs(options, args):
     # Use the relevant count dictionary for requests or ip
     if options.request or options.rmatch:
         ip_req_count = defaultdict(request_record)
-    else:  # --ip or --ipmatch options
+    elif options.ip or options.ipmatch:
         ip_req_count = defaultdict(ip_record)
+    # else create a new dictionary for compact option
+    else:
+        ip_req_count = {'ip': Counter(), 'request': Counter()}
 
     date_count = defaultdict(overall_date_count)
     logs = get_log_files(options)
 
-    # compile regex for speed
+    # compile date and request regex
     regex_date_compile = r"(\d{2}/\w+/\d{4}:\d{2}:\d{2}:\d{2})"
     regex_date = re.compile(regex_date_compile).search
 
     if options.filter:
+        # Only look for requests that start with get or post
         regex_requests_compile = r'"%s[^"]*" \d{3}' % options.filter
     else:
         regex_requests_compile = r'"[^"]*" \d{3}'
@@ -768,7 +801,8 @@ def get_data_from_logs(options, args):
                 with open(logfile) as infile:
                     for line in infile:
                         found_time, ip_req_count, date_count = evaluate_line(line, ip_req_count, date_count, start_time,
-                                                                             end_time, regex_date, regex_requests, datetime_func, month_dict, options, args)
+                                                                             end_time, regex_date, regex_requests,
+                                                                             datetime_func, month_dict, options, args)
                         # Once we find the end date time we no longer need to
                         # carry on checking lines.
                         if found_time:
@@ -779,12 +813,14 @@ def get_data_from_logs(options, args):
                 with open(logfile) as infile:
                     for line in infile:
                         found_time, ip_req_count, date_count = evaluate_line(line, ip_req_count, date_count, start_time,
-                                                                             end_time, regex_date, regex_requests, datetime_func, month_dict, options, args)
+                                                                             end_time, regex_date, regex_requests,
+                                                                             datetime_func, month_dict, options, args)
             # read the log file from bottom up
             else:
                 for line in reverse_readline(logfile):
                     found_time, ip_req_count, date_count = evaluate_line(line, ip_req_count, date_count, start_time,
-                                                                         end_time, regex_date, regex_requests, datetime_func, month_dict, options, args)
+                                                                         end_time, regex_date, regex_requests,
+                                                                         datetime_func, month_dict, options, args)
                     if found_time:
                         if found_time <= start_time:
                             break
@@ -847,15 +883,17 @@ def ip_api(ip):
 
 # called in print_data func. print 10 min intervals count
 def print_10min(logs):
-    for ten_min_key, ten_min_count_value in logs.most_common():
+    # sort by 10 min interval
+    logs = sorted(logs.items())
+    for ten_min_key, ten_min_count_value in logs:
         print '{0} [{1}] |'.format(txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC,
                                    ten_min_count_value),
 
 
 # this func prints all data related to date/time.
 def print_date(date_logs, start_time, end_time):
-    # sorts dates by total count, highest to lowest
-    date_logs = sorted(date_logs.items(), key=itemgetter(1), reverse=True)
+    # sorts by date
+    date_logs = sorted(date_logs.items())
     # avoid repetition of strtftime
     start_time_minute = start_time.strftime('%M')
     start_time_hour = start_time.strftime('%H')
@@ -863,9 +901,9 @@ def print_date(date_logs, start_time, end_time):
     end_time_hour = end_time.strftime('%H')
 
     for date_key, date_values in date_logs:  # date_values contain count, hour
-        # sort hours by total count
+        # sort by hour
         hour_sort = sorted(
-            date_values['hour'].items(), key=itemgetter(1), reverse=True)
+            date_values['hour'].items())
         # The if/else statements below are to ensure accurate data is printed to console.
         # if users date range is multiple days
         if not start_time.date() == end_time.date():
@@ -980,8 +1018,11 @@ def print_date(date_logs, start_time, end_time):
 
 # print all ip related data
 def print_ip(ip_logs, start_time, end_time, ip_no, request_no, options):
-    print '=== Total hits per ip between {0} - {1} ==='.format(txt_colors.LIGHTRED + str(start_time.strftime('%d/%b/%Y %H:%M:%S')),
-                                                               str(end_time.strftime('%d/%b/%Y %H:%M:%S')) + txt_colors.ENDC)
+    print '=== Top {0} ip\'s between {1} - {2} ==='.format(ip_no,
+                                                           txt_colors.LIGHTRED + str(
+                                                               start_time.strftime('%d/%b/%Y %H:%M:%S')),
+                                                           str(end_time.strftime(
+                                                               '%d/%b/%Y %H:%M:%S')) + txt_colors.ENDC)
     # sort per IP with highest hits
     ip_logs = sorted(ip_logs.items(), key=itemgetter(
         1), reverse=True)
@@ -1010,8 +1051,11 @@ def print_ip(ip_logs, start_time, end_time, ip_no, request_no, options):
 
 # print all requests related data
 def print_request(request_logs, start_time, end_time, ip_no, request_no, options):
-    print '=== Total hits per request between {0} - {1} ==='.format(txt_colors.LIGHTRED + str(start_time.strftime('%d/%b/%Y %H:%M:%S')),
-                                                                    str(end_time.strftime('%d/%b/%Y %H:%M:%S')) + txt_colors.ENDC)
+    print '=== Top {0} requests between {1} - {2} ==='.format(request_no,
+                                                              txt_colors.LIGHTRED + str(
+                                                                  start_time.strftime('%d/%b/%Y %H:%M:%S')),
+                                                              str(end_time.strftime(
+                                                                  '%d/%b/%Y %H:%M:%S')) + txt_colors.ENDC)
     # sort requests per count
     request_logs = sorted(request_logs.items(),
                           key=itemgetter(1), reverse=True)
@@ -1039,39 +1083,72 @@ def print_request(request_logs, start_time, end_time, ip_no, request_no, options
         print_date(request_values['date'], start_time, end_time)
 
 
+# print compact version of script output
+def print_compact(compact_logs, start_time, end_time, ip_no, request_no, options):
+    ip_logs = compact_logs['ip']
+    request_logs = compact_logs['request']
+    # get total unique ip's and unique requests
+    ip_count = len(ip_logs) - ip_no
+    ip_total = ip_count if ip_count > 0 else 0
+    request_count = len(request_logs) - request_no
+    request_total = request_count if request_count > 0 else 0
+
+    # print top ip's
+    print '=== Top {0} ip\'s between {1} - {2} ==='.format(ip_no,
+                                                           txt_colors.LIGHTRED + str(
+                                                               start_time.strftime('%d/%b/%Y %H:%M:%S')),
+                                                           str(end_time.strftime(
+                                                               '%d/%b/%Y %H:%M:%S')) + txt_colors.ENDC)
+    for number, (ip, ip_count) in enumerate(ip_logs.most_common()[:ip_no], 1):
+        # check if --nogeo is enabled
+        geo_information = (
+            '' if options.nogeo else "| [Country: {0} ({1})] [ISP: {2}] [Hostname: {3}]".format(*ip_api(ip)))
+        # print ip/count
+        print '\n', '{0}. [{1}] {2} {3}'.format(number, ip_count,
+                                                txt_colors.PURPLE + ip + txt_colors.ENDC,
+                                                geo_information),
+    print '\n... and {0} more unique ip\'s'.format(txt_colors.LIGHTRED + str(ip_total) + txt_colors.ENDC),
+    # print top requests
+    print '\n\n=== Top {0} requests between {1} - {2} ==='.format(request_no,
+                                                                  txt_colors.LIGHTRED + str(
+                                                                      start_time.strftime('%d/%b/%Y %H:%M:%S')),
+                                                                  str(end_time.strftime(
+                                                                      '%d/%b/%Y %H:%M:%S')) + txt_colors.ENDC)
+    for number, (request, request_count) in enumerate(request_logs.most_common()[:request_no], 1):
+        print '\n', '{0}. [{1}] {2}'.format(number, request_count,
+                                            txt_colors.PURPLE + request + txt_colors.ENDC),
+    print '\n... and {0} more unique requests'.format(txt_colors.LIGHTRED + str(request_total) + txt_colors.ENDC),
+
+
 # Print the results of data gathered from logs into console
 def print_data(*arguments):
     ip_req_logs, overall_date_logs, start_time, end_time, options = arguments
     ip_no, request_no = ip_req_number_args(options)
-    # print total count for date and per hourly basis
-    if options.filter and options.ipmatch:
-        data = 'for {0} with listed IP\'s'.format(options.filter)
-    elif options.filter and options.rmatch:
-        data = 'for {0} with listed requests'.format(options.filter)
-    elif options.filter:
-        data = 'for {0}'.format(options.filter)
-    elif options.ipmatch:
-        data = 'for listed IP\'s'
-    elif options.rmatch:
-        data = 'for listed requests'
-    else:
-        data = ''
 
-    print '\n\n==== OVERALL HITS between {0} - {1} {2} ===='.format(txt_colors.LIGHTRED + str(start_time.strftime('%d/%b/%Y %H:%M:%S')),
-                                                                    str(end_time.strftime('%d/%b/%Y %H:%M:%S')) + txt_colors.ENDC, data)
+    # only want overall hits to show for --ip/--request/--compact
+    if not options.ipmatch or not options.rmatch:
+        print '\n\n==== OVERALL HITS between {0} - {1} ===='.format(
+            txt_colors.LIGHTRED +
+            str(start_time.strftime('%d/%b/%Y %H:%M:%S')),
+            str(end_time.strftime('%d/%b/%Y %H:%M:%S')) + txt_colors.ENDC),
+        # with filter, script only looks for get or post requests only
+        if options.filter:
+            print '\n\nNote: The overall hits below is only for {0} requests'.format(options.filter),
+        # print overall date hits for all ip's or requests
+        print_date(overall_date_logs, start_time, end_time)
+        print '\n'
+        if options.filter:
+            print 'Note: The total ip/request hits below is only for {0} requests\n'.format(options.filter)
 
-    print '\n\n{0}: {1} (*minutes) [count] ( {2} [count] | )'.format(txt_colors.YELLOW + 'Key' + txt_colors.ENDC,
-                                                                     txt_colors.GREEN + 'Hour Clock' + txt_colors.ENDC,
-                                                                     txt_colors.CYAN + '10 min intervals eg. 00 = 0-10 mins... 50 = 50-60 mins' + txt_colors.ENDC),
-    # print overall date hits for all ip's or requests
-    print_date(overall_date_logs, start_time, end_time)
-    print '\n'
     # print request or ip data depending on user input
     if options.request or options.rmatch:
         print_request(ip_req_logs, start_time, end_time,
                       ip_no, request_no, options)
-    else:
+    elif options.ip or options.ipmatch:
         print_ip(ip_req_logs, start_time, end_time, ip_no, request_no, options)
+    else:  # options.compact
+        print_compact(ip_req_logs, start_time, end_time,
+                      ip_no, request_no, options)
 
 
 def main():
