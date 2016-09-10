@@ -439,9 +439,9 @@ def os_httpd_version(options):
                'this script. Please email this error (including the command you ran) + server to '
                'tahzeem.taj@rackspace.co.uk.')
         sys.exit()
-    elif not httpd_list and not options.dir:
+    elif not httpd_list and not (options.dir or options.log):
         print ('\nERROR: Could not detect Nginx or Apache running.'
-               'Alternatively if you have a directory with access logs, you can use the \'--dir\' option')
+               'Alternatively if you you can use the --log option if you want to check specific logs')
         sys.exit()
     # '--dir' option only checks logs in user input directory (and not those opened by apache/nginx).
     if options.dir:
@@ -685,7 +685,6 @@ def dict_date_add(date_count, found_time_date, found_time_hour, found_time_minut
 # information required
 def evaluate_line(line, ip_req_count, date_count, start_time, end_time, regex_date, regex_requests, datetime_func,
                   month_dict, options, args):
-    # print line
     try:
         regex_date = regex_date(line).group()
     except AttributeError:
