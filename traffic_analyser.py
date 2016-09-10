@@ -369,6 +369,8 @@ def optionparse_args():
     parser.add_option(
         '-g', '--nogeo', help='Disable geo information per ip', action='store_true')
     parser.add_option(
+        '-i', '--ignore', help='Ignore lines that produce errors', action='store_true')
+    parser.add_option(
         '-f', '--filter', help='filter requests by POST or GET', type='str', nargs=1)
 
     # args is used for variable user inputs for rmatch and ipmatch only.
@@ -683,15 +685,37 @@ def dict_date_add(date_count, found_time_date, found_time_hour, found_time_minut
 # information required
 def evaluate_line(line, ip_req_count, date_count, start_time, end_time, regex_date, regex_requests, datetime_func,
                   month_dict, options, args):
-    regex_date = regex_date(line).group()
-    # convert line time into datetime object
-    yr = int(regex_date[7:11])
-    mon = month_dict[(regex_date[3:6])]
-    day = int(regex_date[0:2])
-    hr = regex_date[12:14]
-    mins = regex_date[15:17]
-    sec = int(regex_date[18:20])
-    found_time = datetime_func(yr, mon, day, int(hr), int(mins), sec)
+    # print line
+    try:
+        regex_date = regex_date(line).group()
+    except AttributeError:
+        if options.ignore:
+            found_time = None
+            return found_time, ip_req_count, date_count
+        else:
+            print ('\nError: Could not recognize the date in the following line:\n{0}\nIf this is a bug, '
+                   'please report it. Otherwise you can use the --ignore option to skip lines like the above.\n'.format(
+                       txt_colors.LIGHTRED + line + txt_colors.ENDC))
+            raise
+    try:
+        # convert line time into datetime object
+        yr = int(regex_date[7:11])
+        mon = month_dict[(regex_date[3:6])]
+        day = int(regex_date[0:2])
+        hr = regex_date[12:14]
+        mins = regex_date[15:17]
+        sec = int(regex_date[18:20])
+        found_time = datetime_func(yr, mon, day, int(hr), int(mins), sec)
+    except ValueError:
+        if options.ignore:
+            found_time = None
+            return found_time, ip_req_count, date_count
+        else:
+            print ('\nError: Could not convert the date in the following line:\n{0}\nIf this is a bug, '
+                   'please report it. Otherwise you can use the --ignore option to skip lines like the above.\n'.format(
+                       txt_colors.LIGHTRED + line + txt_colors.ENDC))
+            raise
+
     found_time_date = found_time.date()
     found_time_hour = str(hr)
     found_time_minute = str(mins)
@@ -699,17 +723,26 @@ def evaluate_line(line, ip_req_count, date_count, start_time, end_time, regex_da
     # compare time from log line to user input time range and retrieve data in
     # between
     if start_time <= found_time <= end_time:
-        # check if get or post filter in requests
-        if options.filter:
-            regex_requests = regex_requests(line)
-            if regex_requests:
-                regex_requests = regex_requests.group()
+        try:
+            # check if get or post filter in requests
+            if options.filter:
+                regex_requests = regex_requests(line)
+                if regex_requests:
+                    regex_requests = regex_requests.group()
+                else:
+                    found_time = None
+                    return found_time, ip_req_count, date_count
             else:
+                regex_requests = regex_requests(line).group()
+        except AttributeError:
+            if options.ignore:
                 found_time = None
                 return found_time, ip_req_count, date_count
-        else:
-            regex_requests = regex_requests(line).group()
-
+            else:
+                print ('\nError: Could not recognize the request format in the following line:\n{0}\nIf this is a bug, '
+                       'please report it. Otherwise you can use the --ignore option to skip lines like the above.\n'.format(
+                           txt_colors.LIGHTRED + line + txt_colors.ENDC))
+                raise
         # get ip
         ip = line.replace(',', '').split()[0]  # for cloudflare logging format.
 
