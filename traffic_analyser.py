@@ -433,11 +433,12 @@ def os_httpd_version(options):
 
     # This if/else statement will ensure the script takes only either apache or nginx.
     # Currently it won't work with both services running.
-    if len(httpd_list) > 1:
+    if len(httpd_list) > 1 and not (options.dir or options.log):
         print ('This server is running both nginx and apache. '
                'This scenario hasn\'t yet been configured to work with '
                'this script. Please email this error (including the command you ran) + server to '
-               'tahzeem.taj@rackspace.co.uk.')
+               'tahzeem.taj@rackspace.co.uk.'
+               'Alternatively if you you can use the --log option if you want to check specific logs')
         sys.exit()
     elif not httpd_list and not (options.dir or options.log):
         print ('\nERROR: Could not detect Nginx or Apache running.'
