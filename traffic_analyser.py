@@ -445,8 +445,8 @@ def os_httpd_version(options):
                'Alternatively if you you can use the --log option if you want to check specific logs')
         sys.exit()
     # '--dir' option only checks logs in user input directory (and not those opened by apache/nginx).
-    if options.dir:
-        httpd_server = 'Ignored (--dir option used)'
+    if options.dir or options.log:
+        httpd_server = 'Ignored (--dir/--log option used)'
     else:
         httpd_server = list(httpd_list)[0]
 
