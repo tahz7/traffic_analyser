@@ -438,11 +438,11 @@ def os_httpd_version(options):
                'This scenario hasn\'t yet been configured to work with '
                'this script. Please email this error (including the command you ran) + server to '
                'tahzeem.taj@rackspace.co.uk.'
-               'Alternatively if you you can use the --log option if you want to check specific logs')
+               ' Alternatively you can use the --log or --dir option if you want to check specific logs')
         sys.exit()
     elif not httpd_list and not (options.dir or options.log):
         print ('\nERROR: Could not detect Nginx or Apache running.'
-               'Alternatively if you you can use the --log option if you want to check specific logs')
+               ' Alternatively you can use the --log or --dir option if you want to check specific logs')
         sys.exit()
     # '--dir' option only checks logs in user input directory (and not those opened by apache/nginx).
     if options.dir or options.log:
