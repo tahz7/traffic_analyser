@@ -1178,7 +1178,6 @@ def print_data(*arguments):
         print_request(ip_req_logs, start_time, end_time,
                       ip_no, request_no, options)
     elif options.ip or options.ipmatch:
-        print '\n'
         print_ip(ip_req_logs, start_time, end_time, ip_no, request_no, options)
     else:  # options.compact
         print_compact(ip_req_logs, start_time, end_time,
