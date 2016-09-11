@@ -926,6 +926,46 @@ def print_10min(logs):
                                        ten_min_count_value),
 
 
+# called in print_data func. print hour count
+def print_hour(logs, date_key, start_time_hour, end_time_hour, start_time_minute, end_time_minute, start_time_date,
+               end_time_date):
+    for hour_key, hour_count_value in logs:
+        # in case start time hour is incomplete
+        # we want exact minutes within that hour to show
+        # first hour of first date
+        if (hour_key == start_time_hour and date_key == start_time_date and
+                not (start_time_date == end_time_date and start_time_hour == end_time_hour)):
+            # format the hour display
+            hour_key = (hour_key + ':00' if start_time_minute == '00' else
+                        '{0}:{1}-{2}:00'.format(hour_key, start_time_minute, int(hour_key) + 1))
+            print '{0} [{2}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
+                                     start_time_minute,
+                                     hour_count_value['count']),
+        # Last hour of the last date
+        elif hour_key == end_time_hour and date_key == end_time_date and not (
+                start_time_date == end_time_date and start_time_hour == end_time_hour):
+            hour_key = (hour_key + ':00' if end_time_minute == '00' else
+                        '{0}:00-{1}:{2}'.format(hour_key, hour_key, end_time_minute))
+            print '{0} [{1}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
+                                     hour_count_value['count']),
+        # first/last hour of the same date
+        elif start_time_date == end_time_date and start_time_hour == end_time_hour:
+            hour_key = (hour_key + ':00' if start_time_minute == '00' and end_time_minute == '00'
+                        else '{0}:{1}-{2}:{3}'.format(hour_key, start_time_minute,
+                                                      hour_key, end_time_minute))
+            print '{0} [{1}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
+                                     hour_count_value['count']),
+        # all other hours
+        else:
+            hour_key += ':00'
+            print '{0} [{1}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
+                                     hour_count_value['count']),
+        # print 10 minute interval hits
+        print '{',
+        print_10min(hour_count_value['ten_min']),
+        print '}\n',
+
+
 # this func prints all data related to date/time.
 def print_date(date_logs, start_time, end_time):
     # sorts by date
@@ -935,6 +975,8 @@ def print_date(date_logs, start_time, end_time):
     start_time_hour = start_time.strftime('%H')
     end_time_minute = end_time.strftime('%M')
     end_time_hour = end_time.strftime('%H')
+    start_time_date = start_time.date()
+    end_time_date = end_time.date()
 
     for date_key, date_values in date_logs:  # date_values contain count, hour
         # sort by hour
@@ -942,73 +984,36 @@ def print_date(date_logs, start_time, end_time):
             date_values['hour'].items())
         # The if/else statements below are to ensure accurate data is printed to console.
         # if users date range is multiple days
-        if not start_time.date() == end_time.date():
+        if start_time_date != end_time_date:
             # print date information
             # first date
-            if date_key == start_time.date():
-                print '\n\n', '{0} ({1}-23:59) [{2}]'.format(
+            if date_key == start_time_date:
+                print '\n\n', '{0} ({1}-00:00) [{2}]'.format(
                     txt_colors.CYAN +
                     start_time.strftime('%d/%b/%Y') + txt_colors.ENDC,
                     start_time.strftime('%H:%M'),
                     date_values['count']), '\n\n',
-                print 'Hourly: \n\n',
                 # print hour information per date
-                for hour_key, hour_count_value in hour_sort:  # hour_count_value contain ten_min and count
-                    # in case start time hour is incomplete
-                    # we want exact minutes within that hour to show
-                    if hour_key == start_time_hour:
-                        print '{0} ({1}-59) [{2}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
-                                                          start_time_minute,
-                                                          hour_count_value['count']),
-                        # print 10 min interval information per hour
-                        print '{',
-                        print_10min(hour_count_value['ten_min']),
-                        print '}\n',
-                    else:
-                        print '{0} [{1}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
-                                                 hour_count_value['count']),
-                        print '{',
-                        print_10min(hour_count_value['ten_min']),
-                        print '}\n',
-
+                print_hour(hour_sort, date_key, start_time_hour, end_time_hour, start_time_minute, end_time_minute,
+                           start_time_date, end_time_date)
             # last date
-            elif date_key == end_time.date():
+            elif date_key == end_time_date:
                 print '\n\n', '{0} (00:00-{1}) [{2}]'.format(
                     txt_colors.CYAN +
                     end_time.strftime('%d/%b/%Y') +
                     txt_colors.ENDC, end_time.strftime('%H:%M'),
                     date_values['count']), '\n\n',
-                print 'Hourly: \n\n',
-                for hour_key, hour_count_value in hour_sort:
-                    # Last hour of the last date
-                    if hour_key == end_time_hour:
-                        print '{0} (00-{1}) [{2}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
-                                                          end_time_minute,
-                                                          hour_count_value['count']),
-                        print '{',
-                        # print 10 min interval hit count for the hour
-                        print_10min(hour_count_value['ten_min']),
-                        print '}\n',
-                    else:
-                        # Any hour of the last date
-                        print '{0} [{1}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
-                                                 hour_count_value['count']),
-                        print '{',
-                        print_10min(hour_count_value['ten_min']),
-                        print '}\n',
+                print_hour(hour_sort, date_key, start_time_hour, end_time_hour, start_time_minute, end_time_minute,
+                           start_time_date, end_time_date)
             # Any date that is not the first or the last
             else:
-                print '\n\n', '{0} (00:00:23:59) [{1}]'.format(
+                print '\n\n', '{0} [{1}]'.format(
                     txt_colors.CYAN +
                     datetime.datetime.strftime(
                         date_key, '%d/%b/%Y') + txt_colors.ENDC,
                     date_values['count']), '\n\n',
-                print 'Hourly: \n\n',
-                for hour_key, hour_count_value in hour_sort:
-                    print '{0} [{1}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC, hour_count_value['count']),
-                    print '{',
-                    print_10min(hour_count_value['ten_min']),
-                    print '}\n',
+                print_hour(hour_sort, date_key, start_time_hour, end_time_hour, start_time_minute, end_time_minute,
+                           start_time_date, end_time_date)
         # If the start time date and the end time date are both the same day
         else:
             print '\n\n', '{0} ({1}-{2}) [{3}]'.format(
@@ -1016,40 +1021,8 @@ def print_date(date_logs, start_time, end_time):
                 start_time.strftime('%d/%b/%Y') + txt_colors.ENDC,
                 start_time.strftime('%H:%M'), end_time.strftime('%H:%M'),
                 date_values['count']), '\n\n',
-            print 'Hourly: \n\n',
-            for hour_key, hour_count_value in hour_sort:
-                # if user input dates are not within the same hour
-                if not start_time.hour == end_time.hour:
-                    if hour_key == start_time_hour:
-                        print '{0} ({1}-59) [{2}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
-                                                          start_time_minute,
-                                                          hour_count_value['count']),
-                        print '{',
-                        print_10min(hour_count_value['ten_min']),
-                        print '}\n',
-                    # Last hour of the last date
-                    elif hour_key == end_time_hour:
-                        print '{0} (00-{1}) [{2}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
-                                                          end_time_minute,
-                                                          hour_count_value['count']),
-                        print '{',
-                        print_10min(hour_count_value['ten_min']),
-                        print '}\n',
-                    # any hour of the day
-                    else:
-                        print '{0} [{1}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
-                                                 hour_count_value['count']),
-                        print '{',
-                        print_10min(hour_count_value['ten_min']),
-                        print '}\n',
-                # if it is within the same hour
-                else:
-                    print '{0} ({1}-{2}) [{3}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
-                                                       start_time_minute,
-                                                       end_time_minute, hour_count_value['count']),
-                    print '{',
-                    print_10min(hour_count_value['ten_min']),
-                    print '}\n',
+            print_hour(hour_sort, date_key, start_time_hour, end_time_hour, start_time_minute, end_time_minute,
+                       start_time_date, end_time_date)
 
 
 # print all ip related data
