@@ -1159,7 +1159,7 @@ def print_data(*arguments):
     ip_no, request_no = ip_req_number_args(options)
 
     # only want overall hits to show for --ip/--request/--compact
-    if not options.ipmatch or not options.rmatch:
+    if not (options.ipmatch or options.rmatch):
         print '\n\n==== OVERALL HITS between {0} - {1} ===='.format(
             txt_colors.LIGHTRED +
             str(start_time.strftime('%d/%b/%Y %H:%M:%S')),
