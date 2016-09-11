@@ -919,8 +919,11 @@ def print_10min(logs):
     # sort by 10 min interval
     logs = sorted(logs.items())
     for ten_min_key, ten_min_count_value in logs:
-        print '{0} [{1}] |'.format(txt_colors.CYAN + ten_min_key + '0' + txt_colors.ENDC,
-                                   ten_min_count_value),
+        from_min_time = (
+            ten_min_key if ten_min_key is '0' else ten_min_key + '0')
+        to_min_time = str(int(ten_min_key) + 1) + '0'
+        print '{0}-{1} [{2}] |'.format(txt_colors.CYAN + from_min_time, to_min_time + txt_colors.ENDC,
+                                       ten_min_count_value),
 
 
 # this func prints all data related to date/time.
