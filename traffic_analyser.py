@@ -383,6 +383,14 @@ def optionparse_args():
     # args is used for variable user inputs for rmatch and ipmatch only.
     # Options for other user input
     (options, args) = parser.parse_args()
+    # underline args when displayed
+    lst_args = ['minute', 'day', 'hour', 'from time', 'to time', 'ip number', 'request number', 'ip number',
+                'request number', 'request number', 'ip number', 'request number', 'list of ip\'s', 'ip number',
+                'list of requests', 'log file(s)', 'directory', 'filter type']
+    lst_args_format = []
+
+    for x in lst_args:
+        lst_args_format.append(txt_colors.U + x + txt_colors.ENDC)
 
     if options.help:
         help_text = '''\n  Options:
@@ -427,24 +435,7 @@ def optionparse_args():
 
   Further documentation can be viewed in the Wiki - https://github.com/tahz7/traffic_analyser/wiki
 
-    '''.format(txt_colors.U + 'minute' + txt_colors.ENDC, txt_colors.U + 'hour' + txt_colors.ENDC,
-               txt_colors.U + 'day' + txt_colors.ENDC,
-               txt_colors.U + 'from time' + txt_colors.ENDC, txt_colors.U +
-               'to time' + txt_colors.ENDC,
-               txt_colors.U + 'ip number' + txt_colors.ENDC, txt_colors.U +
-               'request number' + txt_colors.ENDC,
-               txt_colors.U + 'ip number' + txt_colors.ENDC, txt_colors.U +
-               'request number' + txt_colors.ENDC,
-               txt_colors.U + 'request number' +
-               txt_colors.ENDC, txt_colors.U + 'ip number' + txt_colors.ENDC,
-               txt_colors.U + 'request number' + txt_colors.ENDC, txt_colors.U +
-               'list of ip\'s' + txt_colors.ENDC,
-               txt_colors.U + 'ip number' + txt_colors.ENDC, txt_colors.U +
-               'list of requests' + txt_colors.ENDC,
-               txt_colors.U +
-               'log file(s)' + txt_colors.ENDC, txt_colors.U +
-               'directory' + txt_colors.ENDC,
-               txt_colors.U + 'filter type' + txt_colors.ENDC)
+    '''.format(*lst_args_format)
 
         print help_text
         # print parser.usage_help()
