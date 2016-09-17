@@ -210,7 +210,7 @@ class txt_colors:
     CYAN = '\033[36m'
     HEADER = '\033[95m'
     BOLD = '\033[01m'
-    UNDERLINE = '\033[4m'
+    U = '\033[4m'
     ENDC = '\033[0m'
 
 
@@ -314,7 +314,12 @@ def multi_args(option, opt_str, value, parser):
 # optparse is used over argparse due to python 2.6 not including it as a
 # standard module
 def optionparse_args():
-    parser = OptionParser(conflict_handler="resolve")
+
+    help_list = '-h or --help for command list'
+
+    parser = OptionParser(
+        usage=help_list, conflict_handler="resolve", add_help_option=False)
+
     # time options group
     parser.add_option('-m', '--min', help='Get data from last X minutes', metavar=('minute'),
                       type='int', nargs=1)
@@ -373,9 +378,78 @@ def optionparse_args():
     parser.add_option(
         '-f', '--filter', help='filter requests by POST or GET', type='str', nargs=1)
 
+    parser.add_option('-h', '--help', dest='help', action='store_true',
+                      help='show this help message and exit')
     # args is used for variable user inputs for rmatch and ipmatch only.
     # Options for other user input
     (options, args) = parser.parse_args()
+
+    if options.help:
+        help_text = '''\n  Options:
+
+  -h, --help            show this help message and exit
+  --min {0}
+                        Get data from last X minutes
+  --hour {1}            Get data from last X hour(s)
+  --day {2}             Get data from last X day(s)
+  --date {3} {4}
+                        Get data from between two dates. Example;
+                        date/month/year:hour:minute:second |
+                        10/Aug/2016:15:00:00
+  --compact {5} {6}
+                        Get a simple version of a list of the top X ip's and a
+                        list of the top X requests
+  --ip {7} {8}
+                        Get the top X ip's along with their top X requests
+  --request {9} {10}
+                        Get the top X requests's along with their top X ip's
+  --ipmatch {11} {12}
+                        Get top X requests for user input list of ip'(s)s.
+                        Example: --ipmatch 20 10.10.23.42 134.134.3.13
+  --rmatch {13} {14}
+                        Get top X ip's for user input list of request(s).
+                        Example: --rmatch 10 xmlrpc.php wp-login.php
+  --select              Choose which logs to check from a list of logs
+                        currently opened by nginx/apache.
+  --log {15}     Choose which log files to read from (you can input
+                        multiple log files). Example; --log google_access_log
+                        yahoo_access_log.1
+  --dir {16}       Check the logs that are in the current directory (the
+                        directory must only have text based log files.
+  --top                 Read log files from the top down (by default logs are
+                        read from the bottom line up)
+  --complete            Read every line in log files from the top to bottom
+                        line
+  --nogeo               Disable geo information per ip
+  --ignore              Ignore lines that produce errors
+  --filter {17}
+                        filter requests by POST or GET
+
+  Further documentation can be viewed in the Wiki - https://github.com/tahz7/traffic_analyser/wiki
+
+    '''.format(txt_colors.U + 'minute' + txt_colors.ENDC, txt_colors.U + 'hour' + txt_colors.ENDC,
+               txt_colors.U + 'day' + txt_colors.ENDC,
+               txt_colors.U + 'from time' + txt_colors.ENDC, txt_colors.U +
+               'to time' + txt_colors.ENDC,
+               txt_colors.U + 'ip number' + txt_colors.ENDC, txt_colors.U +
+               'request number' + txt_colors.ENDC,
+               txt_colors.U + 'ip number' + txt_colors.ENDC, txt_colors.U +
+               'request number' + txt_colors.ENDC,
+               txt_colors.U + 'request number' +
+               txt_colors.ENDC, txt_colors.U + 'ip number' + txt_colors.ENDC,
+               txt_colors.U + 'request number' + txt_colors.ENDC, txt_colors.U +
+               'list of ip\'s' + txt_colors.ENDC,
+               txt_colors.U + 'ip number' + txt_colors.ENDC, txt_colors.U +
+               'list of requests' + txt_colors.ENDC,
+               txt_colors.U +
+               'log file(s)' + txt_colors.ENDC, txt_colors.U +
+               'directory' + txt_colors.ENDC,
+               txt_colors.U + 'filter type' + txt_colors.ENDC)
+
+        print help_text
+        # print parser.usage_help()
+        sys.exit()
+
     options, args = args_validation(options, args, parser)
 
     return options, args
@@ -915,61 +989,107 @@ def ip_api(ip):
 
 
 # called in print_data func. print 10 min intervals count
-def print_10min(logs):
+def print_10min(logs, ten_min_len):
     # sort by 10 min interval
     logs = sorted(logs.items())
-    for ten_min_key, ten_min_count_value in logs:
-        from_min_time = (
-            ten_min_key if ten_min_key is '0' else ten_min_key + '0')
+    # get 10 min interval that have hit counts
+    active_mins = [i[0] for i in logs]
+
+    # get 10 min interval that have no hit count
+    for i in range(6):
+        i = str(i)
+        if i not in active_mins:
+            logs.insert(int(i), ('None', 'None'))
+
+    # get count/ten min width for formatting
+    count_width = ten_min_len + 1
+    ten_min_width = ' ' * ten_min_len
+    log_len = len(logs)
+
+    for n, (ten_min_key, ten_min_count_value) in enumerate(logs, 1):
+        pipe_format = '' if n == log_len else '|'
+        # if there are no hits, then print an empty space
+        if ten_min_key == 'None':
+            space_format = (' ' * 7 + ten_min_width + pipe_format if n == 1
+                            else ' ' * 8 + ten_min_width + pipe_format)
+            print space_format,
+            continue
+
+        from_min_time = (ten_min_key if ten_min_key is '0'
+                         else ten_min_key + '0')
         to_min_time = str(int(ten_min_key) + 1) + '0'
-        print '{0}-{1} [{2}] |'.format(txt_colors.CYAN + from_min_time, to_min_time + txt_colors.ENDC,
-                                       ten_min_count_value),
+        print '{0}-{1} {2:{3}s} {4}'.format(txt_colors.CYAN + from_min_time, to_min_time + txt_colors.ENDC,
+                                            '[' + str(ten_min_count_value) + ']', count_width, pipe_format),
 
 
 # called in print_data func. print hour count
-def print_hour(logs, date_key, start_time_hour, end_time_hour, start_time_minute, end_time_minute, start_time_date,
-               end_time_date):
-    for hour_key, hour_count_value in logs:
+def print_hour(print_hour_variables):
+    (hour_sort, date_key, start_time_hour, end_time_hour, start_time_minute,
+     end_time_minute, start_time_date, end_time_date, hour_len, ten_min_len) = print_hour_variables
+
+    for hour_key, hour_count_value in hour_sort:
+        # get the hour/count width for formatting
+        hour_width = 15 if '00' in start_time_minute and '00' in end_time_minute else 21
+        count_width = hour_len
+
         # in case start time hour is incomplete
         # we want exact minutes within that hour to show
         # first hour of first date
         if (hour_key == start_time_hour and date_key == start_time_date and
                 not (start_time_date == end_time_date and start_time_hour == end_time_hour)):
-            # format the hour display
-            hour_key = (hour_key + ':00' if start_time_minute == '00' else
-                        '{0}:{1}-{2}:00'.format(hour_key, start_time_minute, int(hour_key) + 1))
-            print '{0} [{2}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
-                                     start_time_minute,
-                                     hour_count_value['count']),
+            hour_key_format = (hour_key + ':00' if start_time_minute == '00' else
+                               '{0}:{1}-{2}:00'.format(hour_key, start_time_minute, int(hour_key) + 1))
+            print '{0:{1}s}{2:^{3}s}'.format(txt_colors.GREEN + hour_key_format + txt_colors.ENDC, hour_width,
+                                             '[' + str(hour_count_value['count']) + ']', count_width),
         # Last hour of the last date
         elif hour_key == end_time_hour and date_key == end_time_date and not (
                 start_time_date == end_time_date and start_time_hour == end_time_hour):
-            hour_key = (hour_key + ':00' if end_time_minute == '00' else
-                        '{0}:00-{1}:{2}'.format(hour_key, hour_key, end_time_minute))
-            print '{0} [{1}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
-                                     hour_count_value['count']),
+            hour_key_format = (hour_key + ':00' if end_time_minute == '00' else
+                               '{0}:00-{1}:{2}'.format(hour_key, hour_key, end_time_minute))
+            print '{0:{1}s}{2:^{3}s}'.format(txt_colors.GREEN + hour_key_format + txt_colors.ENDC, hour_width,
+                                             '[' + str(hour_count_value['count']) + ']', count_width),
         # first/last hour of the same date
         elif start_time_date == end_time_date and start_time_hour == end_time_hour:
-            hour_key = (hour_key + ':00' if start_time_minute == '00' and end_time_minute == '00'
-                        else '{0}:{1}-{2}:{3}'.format(hour_key, start_time_minute,
-                                                      hour_key, end_time_minute))
-            print '{0} [{1}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
-                                     hour_count_value['count']),
+            hour_key_format = (hour_key + ':00' if start_time_minute == '00' and end_time_minute == '00'
+                               else '{0}:{1}-{2}:{3}'.format(hour_key, start_time_minute,
+                                                             hour_key, end_time_minute))
+            print '{0:{1}s}{2:^{3}s}'.format(txt_colors.GREEN + hour_key_format + txt_colors.ENDC, hour_width,
+                                             '[' + str(hour_count_value['count']) + ']', count_width),
         # all other hours
         else:
-            hour_key += ':00'
-            print '{0} [{1}]'.format(txt_colors.GREEN + hour_key + txt_colors.ENDC,
-                                     hour_count_value['count']),
-        # print 10 minute interval hits
-        print '{',
-        print_10min(hour_count_value['ten_min']),
-        print '}\n',
+            hour_key_format = hour_key + ':00'
+            print '{0:{1}s}{2:^{3}s}'.format(txt_colors.GREEN + hour_key_format + txt_colors.ENDC, hour_width,
+                                             '[' + str(hour_count_value['count']) + ']', count_width),
+
+        print '|',
+        print_10min(hour_count_value['ten_min'], ten_min_len),
+        print '\n',
 
 
 # this func prints all data related to date/time.
 def print_date(date_logs, start_time, end_time):
     # sorts by date
     date_logs = sorted(date_logs.items())
+    # get the max string length for both hour and 10 minute interval.
+    # this is later used to format and neatly print the output
+    ten_min_len = set()
+    hour_len = set()
+
+    for date, date_value in date_logs:
+        for hour, hour_value in date_value['hour'].items():
+            h_len = len(hour + str(hour_value['count']))
+            hour_len.add(h_len)
+            for ten_min, ten_min_value in hour_value['ten_min'].items():
+                ten_len = len(ten_min + str(ten_min_value))
+                ten_min_len.add(ten_len)
+
+    try:
+        ten_min_len = max(ten_min_len)
+        hour_len = max(hour_len)
+    except ValueError:
+        ten_min_len = 0
+        hour_len = 0
+
     # avoid repetition of strtftime
     start_time_minute = start_time.strftime('%M')
     start_time_hour = start_time.strftime('%H')
@@ -982,6 +1102,10 @@ def print_date(date_logs, start_time, end_time):
         # sort by hour
         hour_sort = sorted(
             date_values['hour'].items())
+        # pack hour variables in tuple
+        print_hour_variables = (hour_sort, date_key, start_time_hour, end_time_hour,
+                                start_time_minute, end_time_minute,
+                                start_time_date, end_time_date, hour_len, ten_min_len)
         # The if/else statements below are to ensure accurate data is printed to console.
         # if users date range is multiple days
         if start_time_date != end_time_date:
@@ -994,8 +1118,7 @@ def print_date(date_logs, start_time, end_time):
                     start_time.strftime('%H:%M'),
                     date_values['count']), '\n\n',
                 # print hour information per date
-                print_hour(hour_sort, date_key, start_time_hour, end_time_hour, start_time_minute, end_time_minute,
-                           start_time_date, end_time_date)
+                print_hour(print_hour_variables)
             # last date
             elif date_key == end_time_date:
                 print '\n\n', '{0} (00:00-{1}) [{2}]'.format(
@@ -1003,8 +1126,7 @@ def print_date(date_logs, start_time, end_time):
                     end_time.strftime('%d/%b/%Y') +
                     txt_colors.ENDC, end_time.strftime('%H:%M'),
                     date_values['count']), '\n\n',
-                print_hour(hour_sort, date_key, start_time_hour, end_time_hour, start_time_minute, end_time_minute,
-                           start_time_date, end_time_date)
+                print_hour(print_hour_variables)
             # Any date that is not the first or the last
             else:
                 print '\n\n', '{0} [{1}]'.format(
@@ -1012,8 +1134,7 @@ def print_date(date_logs, start_time, end_time):
                     datetime.datetime.strftime(
                         date_key, '%d/%b/%Y') + txt_colors.ENDC,
                     date_values['count']), '\n\n',
-                print_hour(hour_sort, date_key, start_time_hour, end_time_hour, start_time_minute, end_time_minute,
-                           start_time_date, end_time_date)
+                print_hour(print_hour_variables)
         # If the start time date and the end time date are both the same day
         else:
             print '\n\n', '{0} ({1}-{2}) [{3}]'.format(
@@ -1021,8 +1142,7 @@ def print_date(date_logs, start_time, end_time):
                 start_time.strftime('%d/%b/%Y') + txt_colors.ENDC,
                 start_time.strftime('%H:%M'), end_time.strftime('%H:%M'),
                 date_values['count']), '\n\n',
-            print_hour(hour_sort, date_key, start_time_hour, end_time_hour, start_time_minute, end_time_minute,
-                       start_time_date, end_time_date)
+            print_hour(print_hour_variables)
 
 
 # print all ip related data
@@ -1148,6 +1268,8 @@ def print_data(*arguments):
         print '\n'
         if options.filter:
             print 'Note: The total ip/request hits below is only for {0} requests\n'.format(options.filter)
+    else:
+        print '\n',
 
     # print request or ip data depending on user input
     if options.request or options.rmatch:
@@ -1170,6 +1292,10 @@ def main():
 
     print '\n'
 
+    try:
+        sys.stdout.flush()
+    except:
+        pass
     try:
         sys.stdout.close()
     except:
