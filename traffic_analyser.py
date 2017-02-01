@@ -1,5 +1,9 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding: UTF-8 -*-
+# Author:       Tahzeem Taj
+#               tahzeem.taj@gmail.com
+# Source:       https://github.com/tahz7/traffic_analyser
+
 from datetime import datetime, timedelta
 import json
 import urllib2
@@ -16,194 +20,6 @@ from collections import defaultdict
 from operator import itemgetter
 
 
-# Python 2.6 doesn't include Counter module, below is a converted version
-# for it.
-class Counter(dict):
-    """Dict subclass for counting hashable objects.  Sometimes called a bag
-    or multiset.  Elements are stored as dictionary keys and their counts
-    are stored as dictionary values.
-
-    >>> Counter('zyzygy')
-    Counter({'y': 3, 'z': 2, 'g': 1})
-    """
-
-    def __init__(self, iterable=None, **kwds):
-        """Create a new, empty Counter object.  And if given, count elements
-        from an input iterable.  Or, initialize the count from another mapping
-        of elements to their counts.
-
-        >>> c = Counter()                     # a new, empty counter
-        >>> c = Counter('gallahad')           # a new counter from an iterable
-        >>> c = Counter({'a': 4, 'b': 2})     # a new counter from a mapping
-        >>> c = Counter(a=4, b=2)             # a new counter from keyword args
-        """
-
-        self.update(iterable, **kwds)
-
-    def __missing__(self, key):
-        return 0
-
-    def most_common(self, n=None):
-        '''List the n most common elements and their counts from the most
-        common to the least.  If n is None, then list all element counts.
-
-        >>> Counter('abracadabra').most_common(3)
-        [('a', 5), ('r', 2), ('b', 2)]
-
-        '''
-        if n is None:
-            return sorted(self.iteritems(), key=itemgetter(1), reverse=True)
-        return nlargest(n, self.iteritems(), key=itemgetter(1))
-
-    def elements(self):
-        '''Iterator over elements repeating each as many times as its count.
-
-        >>> c = Counter('ABCABC')
-        >>> sorted(c.elements())
-        ['A', 'A', 'B', 'B', 'C', 'C']
-
-        If an element's count has been set to zero or is a negative number,
-        elements() will ignore it.
-
-        '''
-        for elem, count in self.iteritems():
-            for _ in repeat(None, count):
-                yield elem
-
-    # Override dict methods where the meaning changes for Counter objects.
-
-    @classmethod
-    def fromkeys(cls, iterable, v=None):
-        raise NotImplementedError(
-            'Counter.fromkeys() is undefined.  Use Counter(iterable) instead.')
-
-    def update(self, iterable=None, **kwds):
-        '''Like dict.update() but add counts instead of replacing them.
-
-        Source can be an iterable, a dictionary, or another Counter instance.
-
-        >>> c = Counter('which')
-        >>> c.update('witch')           # add elements from another iterable
-        >>> d = Counter('watch')
-        >>> c.update(d)                 # add elements from another counter
-        >>> c['h']                      # four 'h' in which, witch, and watch
-        4
-
-        '''
-        if iterable is not None:
-            if hasattr(iterable, 'iteritems'):
-                if self:
-                    self_get = self.get
-                    for elem, count in iterable.iteritems():
-                        self[elem] = self_get(elem, 0) + count
-                else:
-                    # fast path when counter is empty
-                    dict.update(self, iterable)
-            else:
-                self_get = self.get
-                for elem in iterable:
-                    self[elem] = self_get(elem, 0) + 1
-        if kwds:
-            self.update(kwds)
-
-    def copy(self):
-        """Like dict.copy() but returns a Counter instance instead of a dict.
-        """
-        return Counter(self)
-
-    def __delitem__(self, elem):
-        """Like dict.__delitem__() but does not raise KeyError for missing
-        values.
-        """
-        if elem in self:
-            dict.__delitem__(self, elem)
-
-    def __repr__(self):
-        if not self:
-            return '%s()' % self.__class__.__name__
-        items = ', '.join(map('%r: %r'.__mod__, self.most_common()))
-        return '%s({%s})' % (self.__class__.__name__, items)
-
-    # Multiset-style mathematical operations discussed in:
-    #       Knuth TAOCP Volume II section 4.6.3 exercise 19
-    #       and at http://en.wikipedia.org/wiki/Multiset
-    #
-    # Outputs guaranteed to only include positive counts.
-    #
-    # To strip negative and zero counts, add-in an empty counter:
-    #       c += Counter()
-
-    def __add__(self, other):
-        '''Add counts from two counters.
-
-        >>> Counter('abbb') + Counter('bcc')
-        Counter({'b': 4, 'c': 2, 'a': 1})
-
-
-        '''
-        if not isinstance(other, Counter):
-            return NotImplemented
-        result = Counter()
-        for elem in set(self) | set(other):
-            newcount = self[elem] + other[elem]
-            if newcount > 0:
-                result[elem] = newcount
-        return result
-
-    def __sub__(self, other):
-        ''' Subtract count, but keep only results with positive counts.
-
-        >>> Counter('abbbc') - Counter('bccd')
-        Counter({'b': 2, 'a': 1})
-
-        '''
-        if not isinstance(other, Counter):
-            return NotImplemented
-        result = Counter()
-        for elem in set(self) | set(other):
-            newcount = self[elem] - other[elem]
-            if newcount > 0:
-                result[elem] = newcount
-        return result
-
-    def __or__(self, other):
-        '''Union is the maximum of value in either of the input counters.
-
-        >>> Counter('abbb') | Counter('bcc')
-        Counter({'b': 3, 'c': 2, 'a': 1})
-
-        '''
-        if not isinstance(other, Counter):
-            return NotImplemented
-        _max = max
-        result = Counter()
-        for elem in set(self) | set(other):
-            newcount = _max(self[elem], other[elem])
-            if newcount > 0:
-                result[elem] = newcount
-        return result
-
-    def __and__(self, other):
-        ''' Intersection is the minimum of corresponding counts.
-
-        >>> Counter('abbb') & Counter('bcc')
-        Counter({'b': 1})
-
-        '''
-        if not isinstance(other, Counter):
-            return NotImplemented
-        _min = min
-        result = Counter()
-        if len(self) < len(other):
-            self, other = other, self
-        for elem in ifilter(self.__contains__, other):
-            newcount = _min(self[elem], other[elem])
-            if newcount > 0:
-                result[elem] = newcount
-        return result
-
-
-# This class includes colors/patterns for text output.
 class Col(object):
     BLUE = '\033[94m'
     GREEN = '\033[92m'
@@ -240,15 +56,15 @@ class CmdArgs(object):
             options.compact = (10, 10)
             options.hour = 1
             self.cmd_args['default_arg'] = "--compact 10 10 --hour 1"
-        elif (options.select or options.log) and not ((options.compact or
-                                                       options.ip or
-                                                       options.rmatch or
-                                                       options.ipmatch or
-                                                       options.request) and
-                                                      not (options.hour or
-                                                           options.min or
-                                                           options.day or
-                                                           options.date)):
+        elif (options.select or options.log) and not (options.compact or
+                                                      options.ip or
+                                                      options.rmatch or
+                                                      options.ipmatch or
+                                                      options.request or
+                                                      options.hour or
+                                                      options.min or
+                                                      options.day or
+                                                      options.date):
             options.compact = (10, 10)
             options.hour = 1
             self.cmd_args['default_arg'] = "--compact 10 10 --hour 1"
@@ -272,7 +88,21 @@ class CmdArgs(object):
                 options.date or
                 options.day):
             options.hour = 1
-            self.cmd_args['default_arg'] = "--hour"
+            self.cmd_args['default_arg'] = "--hour 1"
+        elif (options.compact or options.ip or options.rmatch or
+              options.ipmatch or options.request) and not (options.hour or
+                                                           options.min or
+                                                           options.date or
+                                                           options.day):
+            options.hour = 1
+            self.cmd_args['default_arg'] = "--hour 1"
+        elif (options.hour or options.min or options.date or
+              options.day) and not (options.compact or options.ip or
+                                    options.rmatch or options.ipmatch or
+                                    options.request):
+            options.compact = (10, 10)
+            self.cmd_args['default_arg'] = "--compact 10 10"
+
         if options.log:
             # cycle will display results for each individual log file
             if 'cycle' in options.log:
@@ -1803,9 +1633,198 @@ def print_main_header():
     print Title.traffic_analyser
     print
     print 'Version: {0}'.format(Col.GREEN + 'v2.1' + Col.ENDC)
-    print 'Last Updated: {0}'.format(Col.GREEN + '08/01/2016 13:00:00' +
+    print 'Last Updated: {0}'.format(Col.GREEN + '01/Jan/2017' +
                                      Col.ENDC)
+    print 'Report bugs/issues to: {0}'.format(
+        Col.GREEN + 'https://github.com/tahz7/traffic_analyser' + Col.ENDC)
     print
+
+
+class Counter(dict):
+    """Python 2.6 doesn't include Counter module, below is a converted version.
+
+    Dict subclass for counting hashable objects.  Sometimes called a bag
+    or multiset.  Elements are stored as dictionary keys and their counts
+    are stored as dictionary values.
+
+    >>> Counter('zyzygy')
+    Counter({'y': 3, 'z': 2, 'g': 1})
+    """
+
+    def __init__(self, iterable=None, **kwds):
+        """Create a new, empty Counter object.  And if given, count elements
+        from an input iterable.  Or, initialize the count from another mapping
+        of elements to their counts.
+
+        >>> c = Counter()                     # a new, empty counter
+        >>> c = Counter('gallahad')           # a new counter from an iterable
+        >>> c = Counter({'a': 4, 'b': 2})     # a new counter from a mapping
+        >>> c = Counter(a=4, b=2)             # a new counter from keyword args
+        """
+
+        self.update(iterable, **kwds)
+
+    def __missing__(self, key):
+        return 0
+
+    def most_common(self, n=None):
+        '''List the n most common elements and their counts from the most
+        common to the least.  If n is None, then list all element counts.
+
+        >>> Counter('abracadabra').most_common(3)
+        [('a', 5), ('r', 2), ('b', 2)]
+
+        '''
+        if n is None:
+            return sorted(self.iteritems(), key=itemgetter(1), reverse=True)
+        return nlargest(n, self.iteritems(), key=itemgetter(1))
+
+    def elements(self):
+        '''Iterator over elements repeating each as many times as its count.
+
+        >>> c = Counter('ABCABC')
+        >>> sorted(c.elements())
+        ['A', 'A', 'B', 'B', 'C', 'C']
+
+        If an element's count has been set to zero or is a negative number,
+        elements() will ignore it.
+
+        '''
+        for elem, count in self.iteritems():
+            for _ in repeat(None, count):
+                yield elem
+
+    # Override dict methods where the meaning changes for Counter objects.
+
+    @classmethod
+    def fromkeys(cls, iterable, v=None):
+        raise NotImplementedError(
+            'Counter.fromkeys() is undefined.  Use Counter(iterable) instead.')
+
+    def update(self, iterable=None, **kwds):
+        '''Like dict.update() but add counts instead of replacing them.
+
+        Source can be an iterable, a dictionary, or another Counter instance.
+
+        >>> c = Counter('which')
+        >>> c.update('witch')           # add elements from another iterable
+        >>> d = Counter('watch')
+        >>> c.update(d)                 # add elements from another counter
+        >>> c['h']                      # four 'h' in which, witch, and watch
+        4
+
+        '''
+        if iterable is not None:
+            if hasattr(iterable, 'iteritems'):
+                if self:
+                    self_get = self.get
+                    for elem, count in iterable.iteritems():
+                        self[elem] = self_get(elem, 0) + count
+                else:
+                    # fast path when counter is empty
+                    dict.update(self, iterable)
+            else:
+                self_get = self.get
+                for elem in iterable:
+                    self[elem] = self_get(elem, 0) + 1
+        if kwds:
+            self.update(kwds)
+
+    def copy(self):
+        """Like dict.copy() but returns a Counter instance instead of a dict.
+        """
+        return Counter(self)
+
+    def __delitem__(self, elem):
+        """Like dict.__delitem__() but does not raise KeyError for missing
+        values.
+        """
+        if elem in self:
+            dict.__delitem__(self, elem)
+
+    def __repr__(self):
+        if not self:
+            return '%s()' % self.__class__.__name__
+        items = ', '.join(map('%r: %r'.__mod__, self.most_common()))
+        return '%s({%s})' % (self.__class__.__name__, items)
+
+    # Multiset-style mathematical operations discussed in:
+    #       Knuth TAOCP Volume II section 4.6.3 exercise 19
+    #       and at http://en.wikipedia.org/wiki/Multiset
+    #
+    # Outputs guaranteed to only include positive counts.
+    #
+    # To strip negative and zero counts, add-in an empty counter:
+    #       c += Counter()
+
+    def __add__(self, other):
+        '''Add counts from two counters.
+
+        >>> Counter('abbb') + Counter('bcc')
+        Counter({'b': 4, 'c': 2, 'a': 1})
+
+
+        '''
+        if not isinstance(other, Counter):
+            return NotImplemented
+        result = Counter()
+        for elem in set(self) | set(other):
+            newcount = self[elem] + other[elem]
+            if newcount > 0:
+                result[elem] = newcount
+        return result
+
+    def __sub__(self, other):
+        ''' Subtract count, but keep only results with positive counts.
+
+        >>> Counter('abbbc') - Counter('bccd')
+        Counter({'b': 2, 'a': 1})
+
+        '''
+        if not isinstance(other, Counter):
+            return NotImplemented
+        result = Counter()
+        for elem in set(self) | set(other):
+            newcount = self[elem] - other[elem]
+            if newcount > 0:
+                result[elem] = newcount
+        return result
+
+    def __or__(self, other):
+        '''Union is the maximum of value in either of the input counters.
+
+        >>> Counter('abbb') | Counter('bcc')
+        Counter({'b': 3, 'c': 2, 'a': 1})
+
+        '''
+        if not isinstance(other, Counter):
+            return NotImplemented
+        _max = max
+        result = Counter()
+        for elem in set(self) | set(other):
+            newcount = _max(self[elem], other[elem])
+            if newcount > 0:
+                result[elem] = newcount
+        return result
+
+    def __and__(self, other):
+        ''' Intersection is the minimum of corresponding counts.
+
+        >>> Counter('abbb') & Counter('bcc')
+        Counter({'b': 1})
+
+        '''
+        if not isinstance(other, Counter):
+            return NotImplemented
+        _min = min
+        result = Counter()
+        if len(self) < len(other):
+            self, other = other, self
+        for elem in ifilter(self.__contains__, other):
+            newcount = _min(self[elem], other[elem])
+            if newcount > 0:
+                result[elem] = newcount
+        return result
 
 
 def main():
