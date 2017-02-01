@@ -1635,7 +1635,7 @@ def print_main_header():
     print 'Version: {0}'.format(Col.GREEN + 'v2.1' + Col.ENDC)
     print 'Last Updated: {0}'.format(Col.GREEN + '01/Jan/2017' +
                                      Col.ENDC)
-    print 'See Changelog Here: {0}'.format(
+    print 'See changelog here: {0}'.format(
         Col.GREEN + 'https://github.com/tahz7/traffic_analyser/'
                     'blob/master/CHANGELOG.md' + Col.ENDC)
     print 'Report bugs/issues to: {0}'.format(
