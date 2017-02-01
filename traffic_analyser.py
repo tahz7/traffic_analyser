@@ -1576,8 +1576,10 @@ class PrintData(object):
         print
 
     def print_select(self, print_stuff):
-        log_num = {log_file: num for num, log_file in enumerate(
-            self.data['logs'].keys(), 1)}
+        log_len = len(self.data['logs'])
+        num_list = list(range(1, log_len + 1))
+        get_logs = self.data['logs'].keys()
+        log_num = dict(zip(get_logs, num_list))
 
         print
         print Title.log_info
