@@ -1635,7 +1635,7 @@ def print_main_header():
     print Title.traffic_analyser
     print
     print 'Version: {0}'.format(Col.GREEN + 'v2.1' + Col.ENDC)
-    print 'Last Updated: {0}'.format(Col.GREEN + '01/Jan/2017' +
+    print 'Last Updated: {0}'.format(Col.GREEN + '02/Feb/2017' +
                                      Col.ENDC)
     print 'See changelog here: {0}'.format(
         Col.GREEN + 'https://github.com/tahz7/traffic_analyser/'
