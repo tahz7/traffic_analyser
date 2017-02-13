@@ -18,7 +18,7 @@ This script has been tested to run with the following;
 
 ### usage:
 
-For quick basic usage with default arguments you can run;
+For quick basic usage with default options you can run;
 
 `curl -s https://raw.githubusercontent.com/tahz7/traffic_analyser/master/traffic_analyser.py | python`
 
