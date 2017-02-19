@@ -1,3 +1,9 @@
+#### 19/Feb/2017 ####
+
+--Bug Fixes--
+
+- Python 2.6 doesn't support exit for gzip files for the with statement. http://www.python.org/dev/peps/pep-0343/ Updated this to open gzip files without the with statement.
+
 #### 01/Feb/2017 ####
 
 --Changes/Additions--

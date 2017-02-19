@@ -229,8 +229,7 @@ class CmdArgs(object):
         return options, args
 
     def multi_args(self, option, opt_str, value, parser):
-        """
-        Normally you can append variable arguments into the args list
+        """ Normally you can append variable arguments into the args list
         but this can lead to data clashes if --rmatch or --ipmatch is also
         used. For avoidance this function is currently used to append
         arguments for the --log option.
@@ -425,7 +424,6 @@ class GetData(object):
                 self.cmd_args['ten_min']):
             self.data['ten_min_enable'] = True
 
-    # This func gets all the log files it needs to process based on options
     def get_log_files(self, opts, httpd_pid_dict):
         """ Grab log files based on options/args """
 
@@ -952,7 +950,26 @@ class AnalyseLogs(LogDataStructure):
 
                 gzip_file_check = (True if logfile.endswith('.gz') else False)
 
-                if opts.top or gzip_file_check and not opts.complete:
+                if gzip_file_check:
+                    # read gzip files
+                    infile = self.openfile(logfile)
+                    for line in infile:
+                        found_time = self.evaluate_line(line, start_time,
+                                                        end_time,
+                                                        regex_date,
+                                                        regex_requests,
+                                                        opts, args)
+                        # Once we find the end date time we no longer
+                        # need to carry on checking lines.
+                        if found_time:
+                            self.hit_count += 1
+                            last_recorded_date = found_time
+                            if not first_recorded_date:
+                                first_recorded_date = found_time
+                            if found_time >= end_time:
+                                break
+
+                elif opts.top:
                     # read log file from top to bottom.
                     with self.openfile(logfile) as infile:
                         for line in infile:
@@ -961,8 +978,6 @@ class AnalyseLogs(LogDataStructure):
                                                             regex_date,
                                                             regex_requests,
                                                             opts, args)
-                            # Once we find the end date time we no longer
-                            # need to carry on checking lines.
                             if found_time:
                                 self.hit_count += 1
                                 last_recorded_date = found_time
@@ -1117,8 +1132,9 @@ class PrintData(object):
         else:
             self.print_log_count()
 
-    # Print the results of data gathered from logs into console
     def print_data(self, logs_data):
+        """ Print the results of data gathered from logs into console
+        """
         opts = self.cmd_args['opts']
         ip_req_logs, overall_date_logs = logs_data
         start_time, end_time = (self.data['time_period'][0],
@@ -1355,9 +1371,10 @@ class PrintData(object):
                     date_count), '\n\n',
                 self.print_hour(print_hour_variables)
 
-    # print compact version of script output
     def print_compact(self, compact_logs, start_time, end_time, ip_no,
                       request_no, opts):
+        """ print compact version of script output """
+
         ip_logs = compact_logs['ip']
         request_logs = compact_logs['request']
         # get total unique ip's and unique requests
@@ -1635,7 +1652,7 @@ def print_main_header():
     print Title.traffic_analyser
     print
     print 'Version: {0}'.format(Col.GREEN + 'v2.1' + Col.ENDC)
-    print 'Last Updated: {0}'.format(Col.GREEN + '02/Feb/2017' +
+    print 'Last Updated: {0}'.format(Col.GREEN + '19/Feb/2017' +
                                      Col.ENDC)
     print 'See changelog here: {0}'.format(
         Col.GREEN + 'https://github.com/tahz7/traffic_analyser/'
