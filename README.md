@@ -2,7 +2,7 @@
 
 ### description:
 
-The script provides you with useful information to help troubleshoot traffic related issues such as DDOS attacks, traffic spikes, brute forces, xmlrpc attacks, fake spider/bot attacks etc. 
+This script provides you with useful information to help troubleshoot traffic related issues such as DDOS attacks, traffic spikes, brute forces, xmlrpc attacks, fake spider/bot attacks etc. 
 
 It's designed to retrieve information as quickly as possible even in light of scenarios where there could be large log files and resource usage limits (server under heavy load).
 
